@@ -1,43 +1,30 @@
-package com.library.entity;
+package com.library;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@Entity
-@Table(name = "country")
-public class Country {
+import com.library.entity.Country;
+import com.library.service.CountryService;
 
-    @Id
-    private String coCode;
-    private String coName;
+@SpringBootApplication
+public class LibraryManagementApplication implements CommandLineRunner {
 
-    public Country() {
-    }
+    @Autowired
+    private CountryService countryService;
 
-    public Country(String coCode, String coName) {
-        this.coCode = coCode;
-        this.coName = coName;
-    }
-
-    public String getCoCode() {
-        return coCode;
-    }
-
-    public void setCoCode(String coCode) {
-        this.coCode = coCode;
-    }
-
-    public String getCoName() {
-        return coName;
-    }
-
-    public void setCoName(String coName) {
-        this.coName = coName;
+    public static void main(String[] args) {
+        SpringApplication.run(LibraryManagementApplication.class, args);
     }
 
     @Override
-    public String toString() {
-        return "Country [coCode=" + coCode + ", coName=" + coName + "]";
+    public void run(String... args) throws Exception {
+
+        System.out.println("Country List");
+
+        for (Country country : countryService.getAllCountries()) {
+            System.out.println(country);
+        }
     }
 }
