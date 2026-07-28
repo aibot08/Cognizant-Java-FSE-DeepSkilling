@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # Database Service (PostgreSQL)
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: microservices_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - microservices-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d microservices_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service Discovery (Eureka Server)
+  discovery-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: eureka-discovery-server
+    ports:
+      - "8761:8761"
+    networks:
+      - microservices-net
+
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      - discovery-server
+    networks:
+      - microservices-net
+
+  # Account Microservice
+  account-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: account-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/microservices_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: secretpassword
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    networks:
+      - microservices-net
+
+  # Loan Microservice
+  loan-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: loan-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/microservices_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: secretpassword
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    networks:
+      - microservices-net
+
+  # GenAI Service
+  genai-service:
+    build:
+      context: ../04-GenAI-Fundamentals-Service
+      dockerfile: Dockerfile
+    container_name: genai-service
+    ports:
+      - "8090:8090"
+    networks:
+      - microservices-net
+
+  # Angular / React Frontend Client
+  frontend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: frontend-client
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - microservices-net
+
+networks:
+  microservices-net:
+    driver: bridge
+
+volumes:
+  pgdata:
